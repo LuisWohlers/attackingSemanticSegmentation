@@ -1,5 +1,4 @@
 import os
-import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -9,10 +8,7 @@ from tqdm import tqdm
 from PIL import Image
 
 class ToTensor(object):
-    """Convert ndarrays of images and masks to Tensors."""
 
     def __call__(self, image, mask):
-        # swap color axis
-        image = image.transpose((1,2,0))
         return {'image': transforms.functional.to_tensor(image),
-                'mask': torch.from_numpy(mask)}
+                'mask': torch.from_numpy(mask.squeeze().transpose(2,0,1))}
