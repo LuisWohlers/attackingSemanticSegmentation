@@ -56,6 +56,8 @@ class TrainSeg():
             for (idx,(img,mask)) in enumerate(self.trainloader):
                 (img,mask) = (img.to(self.device),mask.to(self.device))
                 
+                print(torch.max(mask))
+                
                 pred = self.model(img)
                 loss = self.lossFunc(pred,mask)
                 
@@ -69,6 +71,7 @@ class TrainSeg():
                 self.model.eval()
                 
                 for (img,mask) in self.testloader:
+                    (img,mask) = (img.to(self.device),mask.to(self.device))
                     pred = self.model(img)
                     totalTestLoss += self.lossFunc(pred,mask)
                     
@@ -90,6 +93,7 @@ class TrainSeg():
             totalValLoss = 0
             
             for (img,mask) in self.valloader:
+                (img,mask) = (img.to(self.device),mask.to(self.device))
                 pred = self.model(img)
                 totalValLoss += self.lossFunc(pred,mask)
                 
