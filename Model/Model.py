@@ -30,7 +30,7 @@ class Block(Module):
         self.conv2 = Conv2d(outChannels,outChannels,3)
         
     def forward(self, x):
-        return self.conv2(self.relu(self.conv1(x)))
+        return self.relu(self.conv2(self.relu(self.conv1(x))))
     
 class Encoder(Module):
     def __init__(self):
@@ -69,12 +69,15 @@ class UNet(Module):
         self.encoder = Encoder()
         self.decoder = Decoder()
         self.tail = Conv2d(64,num_classes,1)
+        self.sigmoid = torch.nn.Sigmoid()
+        self.float()
         
     def forward(self,x):
         x = F.pad(x,(98,98,98,98),'constant',0)
         encoded_features = self.encoder(x)
         out = self.decoder(encoded_features[::-1][0], encoded_features[::-1][1:])
         out = self.tail(out)
+        out = self.sigmoid(out)
         return torchvision.transforms.CenterCrop([1080, 1920])(out)
             
         
