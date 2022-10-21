@@ -1,4 +1,4 @@
-from torch.optim import Adam
+from torch.optim import Adam, SGD
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from imutils import paths
@@ -33,7 +33,7 @@ class TrainSeg():
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         self.model.to(self.device)
-        self.optim = Adam(self.model.parameters(),lr=self.learning_rate)
+        self.optim = SGD(self.model.parameters(),lr=self.learning_rate)
         
         self.trainloader = DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
         self.testloader = DataLoader(self.test_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
@@ -55,8 +55,6 @@ class TrainSeg():
             
             for (idx,(img,mask)) in enumerate(self.trainloader):
                 (img,mask) = (img.to(self.device),mask.to(self.device))
-                
-                print(torch.max(mask))
                 
                 pred = self.model(img)
                 loss = self.lossFunc(pred,mask)

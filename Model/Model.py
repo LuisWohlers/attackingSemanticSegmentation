@@ -59,7 +59,7 @@ class Decoder(Module):
             x = self.upconvs[i](x)
             _,_,H,W = x.shape
             encoded_features = torchvision.transforms.CenterCrop([H, W])(features[i])
-            x = torch.cat([x,0.01*encoded_features],dim=1)
+            x = torch.cat([x,encoded_features],dim=1)
             x = self.blocks[i](x)
         return x
             
@@ -73,11 +73,11 @@ class UNet(Module):
         self.float()
         
     def forward(self,x):
-        x = F.pad(x,(98,98,98,98),'constant',0)
+        x = F.pad(x,(98,98,98,98),'reflect')
         encoded_features = self.encoder(x)
         out = self.decoder(encoded_features[::-1][0], encoded_features[::-1][1:])
         out = self.tail(out)
-        #out = self.sigmoid(out)
+        out = self.sigmoid(out)
         return torchvision.transforms.CenterCrop([1080, 1920])(out)
             
         
