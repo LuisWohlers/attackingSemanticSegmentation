@@ -30,12 +30,12 @@ class Block(Module):
         self.conv2 = Conv2d(outChannels,outChannels,3)
         
     def forward(self, x):
-        return self.relu(self.conv2(self.relu(self.conv1(x))))
+        return self.conv2(self.relu(self.conv1(x)))
     
 class Encoder(Module):
     def __init__(self):
         super().__init__()
-        self.channels = (3,64,128,256,512,1024)
+        self.channels = (3,16,32,64)#(3,64,128,256,512,1024)
         self.blocks = ModuleList([Block(self.channels[i],self.channels[i+1]) for i in range(len(self.channels)-1)])
         self.pool = MaxPool2d(2)
         
@@ -50,7 +50,7 @@ class Encoder(Module):
 class Decoder(Module):
     def __init__(self):
         super().__init__()
-        self.channels = (1024,512,256,128,64)
+        self.channels = (64,32,16)#(1024,512,256,128,64)
         self.upconvs = ModuleList([ConvTranspose2d(self.channels[i],self.channels[i+1],2,2) for i in range(len(self.channels)-1)])
         self.blocks = ModuleList([Block(self.channels[i],self.channels[i+1]) for i in range(len(self.channels)-1)])
         
@@ -68,16 +68,17 @@ class UNet(Module):
         super().__init__()
         self.encoder = Encoder()
         self.decoder = Decoder()
-        self.tail = Conv2d(64,num_classes,1)
+        self.tail = Conv2d(self.decoder.channels[-1],num_classes,1)
         self.sigmoid = torch.nn.Sigmoid()
         self.float()
         
     def forward(self,x):
-        x = F.pad(x,(98,98,98,98),'reflect')
+        #x = F.pad(x,(98,98,98,98),'reflect')
         encoded_features = self.encoder(x)
         out = self.decoder(encoded_features[::-1][0], encoded_features[::-1][1:])
         out = self.tail(out)
-        out = self.sigmoid(out)
-        return torchvision.transforms.CenterCrop([1080, 1920])(out)
+        #out = self.sigmoid(out)
+        out = F.interpolate(out,(1080,1920))
+        return out
             
         

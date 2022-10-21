@@ -33,7 +33,7 @@ class TrainSeg():
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         self.model.to(self.device)
-        self.optim = SGD(self.model.parameters(),lr=self.learning_rate)
+        self.optim = Adam(self.model.parameters(),lr=self.learning_rate)
         
         self.trainloader = DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
         self.testloader = DataLoader(self.test_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
