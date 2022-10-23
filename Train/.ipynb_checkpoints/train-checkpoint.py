@@ -1,4 +1,4 @@
-from torch.optim import Adam, SGD
+from torch.optim import Adam, SGD, RMSprop
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from imutils import paths
@@ -15,8 +15,12 @@ class TrainSeg():
                 valdata,
                 classes,
                 loss,
+                optim_name,
                 batchsize,
                 lr,
+                momentum,
+                decay_rate,
+                decaysteps,
                 num_epochs,
                 model_path):
         self.model = model
@@ -24,8 +28,12 @@ class TrainSeg():
         self.test_data = testdata
         self.val_data = valdata
         self.classes = classes
-        self.lossFunc = loss  
+        self.lossFunc = loss
+        self.optim_name = optim_name
         self.learning_rate = lr
+        self.momentum = momentum
+        self.decay_rate = decay_rate
+        self.lr_decaysteps = decaysteps
         self.batch_size = batchsize
         self.num_epochs = num_epochs
         self.model_path = model_path
@@ -33,7 +41,13 @@ class TrainSeg():
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         self.model.to(self.device)
-        self.optim = Adam(self.model.parameters(),lr=self.learning_rate)
+        if self.optim_name == 'RMSprop':
+            self.optim = RMSprop(self.model.parameters(),lr=self.learning_rate,momentum=self.momentum)
+        elif self.optim_name == 'Adam':
+            self.optim = Adam(self.model.parameters(),lr=self.learning_rate)
+        
+        self.lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optim, gamma=self.decay_rate)
+
         
         self.trainloader = DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
         self.testloader = DataLoader(self.test_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
@@ -47,6 +61,7 @@ class TrainSeg():
         
     def train(self):
         start_time = time.time()
+        lr_pr = self.learning_rate
         for e in range(self.num_epochs):
             self.model.train()
             
@@ -78,9 +93,14 @@ class TrainSeg():
                 
             self.Loss_dict["train_loss"].append(avgTrainLoss.cpu().detach().numpy())
             self.Loss_dict["test_loss"].append(avgTestLoss.cpu().detach().numpy())
-            
+                        
             print("Epoch: {}/{}".format(e + 1, self.num_epochs))
-            print("Train loss: {:.6f}, Test loss: {:.4f}".format(avgTrainLoss, avgTestLoss))
+            print("Train loss: {:.6f}, Test loss: {:.4f}, Learning rate: {:.6f}".format(avgTrainLoss, avgTestLoss, lr_pr))
+            
+            if (e+1)%self.lr_decaysteps == 0:
+                self.lr_scheduler.step()
+                lr_pr *= self.decay_rate
+
 
         end_time = time.time()
         print("Total time taken to train the model: {:.2f}s".format(end_time - start_time))

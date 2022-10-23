@@ -72,7 +72,7 @@ class dataset(Dataset):
         
         for x in range(width):
             for y in range(height):
-                if (mask[x,y,:]==1).all():
+                if (mask[x,y,:]>=0.8).all():
                     masked_img[x,y,:]=0.4*image[x,y,:]+0.6*magenta
         
         plt.imshow(masked_img)
