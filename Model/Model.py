@@ -1,5 +1,6 @@
 from torch.nn import ConvTranspose2d
 from torch.nn import Conv2d
+from torch.nn import BatchNorm2d
 from torch.nn import MaxPool2d
 from torch.nn import Module
 from torch.nn import ModuleList
@@ -14,17 +15,20 @@ import torchvision
 class Block(Module):
     def __init__(self,inChannels,outChannels):
         super().__init__()
+        self.bnorm1 = BatchNorm2d(inChannels)
         self.conv1 = Conv2d(inChannels,outChannels,3)
         self.relu = ReLU()
+        self.bnorm2 = BatchNorm2d(outChannels)
         self.conv2 = Conv2d(outChannels,outChannels,3)
+        self.bnorm3 = BatchNorm2d(outChannels)
         
     def forward(self, x):
-        return self.conv2(self.relu(self.conv1(x)))
+        return self.bnorm3(self.conv2(self.bnorm2(self.relu(self.conv1(self.bnorm1(x))))))
     
 class Encoder(Module):
-    def __init__(self):
+    def __init__(self,channels):
         super().__init__()
-        self.channels = (3,16,32,64)#(3,64,128,256,512,1024)
+        self.channels = channels#(3,64,128,256,512,1024)
         self.blocks = ModuleList([Block(self.channels[i],self.channels[i+1]) for i in range(len(self.channels)-1)])
         self.pool = MaxPool2d(2)
         
@@ -37,9 +41,9 @@ class Encoder(Module):
         return features
     
 class Decoder(Module):
-    def __init__(self):
+    def __init__(self,channels):
         super().__init__()
-        self.channels = (64,32,16)#(1024,512,256,128,64)
+        self.channels = channels#(1024,512,256,128,64)
         self.upconvs = ModuleList([ConvTranspose2d(self.channels[i],self.channels[i+1],2,2) for i in range(len(self.channels)-1)])
         self.blocks = ModuleList([Block(self.channels[i],self.channels[i+1]) for i in range(len(self.channels)-1)])
         
@@ -53,10 +57,10 @@ class Decoder(Module):
         return x
             
 class UNet(Module):
-    def __init__(self,num_classes=3):
+    def __init__(self,num_classes=3,enc_channels=(3,64,128,256,512,1024),dec_channels=(1024,512,256,128,64)):
         super().__init__()
-        self.encoder = Encoder()
-        self.decoder = Decoder()
+        self.encoder = Encoder(enc_channels)
+        self.decoder = Decoder(dec_channels)
         self.tail = Conv2d(self.decoder.channels[-1],num_classes,1)
         self.sigmoid = torch.nn.Sigmoid()
         self.float()

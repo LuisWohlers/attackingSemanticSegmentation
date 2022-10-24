@@ -45,6 +45,8 @@ class TrainSeg():
             self.optim = RMSprop(self.model.parameters(),lr=self.learning_rate,momentum=self.momentum)
         elif self.optim_name == 'Adam':
             self.optim = Adam(self.model.parameters(),lr=self.learning_rate)
+        elif self.optim_name == 'SGD':
+            self.optim = SGD(self.model.parameters(),lr=self.learning_rate)
         
         self.lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optim, gamma=self.decay_rate)
 
