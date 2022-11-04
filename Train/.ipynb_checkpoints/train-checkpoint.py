@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import torch
 import time
 import os
+import gc
 
 class TrainSeg():
     def __init__(self,model,
@@ -40,7 +41,8 @@ class TrainSeg():
         
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        self.model.to(self.device)
+        self.model = self.model.to(self.device)
+        
         if self.optim_name == 'RMSprop':
             self.optim = RMSprop(self.model.parameters(),lr=self.learning_rate,momentum=self.momentum)
         elif self.optim_name == 'Adam':
@@ -51,9 +53,9 @@ class TrainSeg():
         self.lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optim, gamma=self.decay_rate)
 
         
-        self.trainloader = DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
-        self.testloader = DataLoader(self.test_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
-        self.valloader = DataLoader(self.val_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
+        self.trainloader = DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, num_workers = 1)#os.cpu_count())
+        self.testloader = DataLoader(self.test_data, batch_size = self.batch_size, shuffle = True, num_workers = 1)#os.cpu_count())
+        self.valloader = DataLoader(self.val_data, batch_size = self.batch_size, shuffle = True, num_workers = 1)#os.cpu_count())
         
         self.train_steps = len(traindata)//self.batch_size
         self.test_steps = len(testdata)//self.batch_size
@@ -69,10 +71,8 @@ class TrainSeg():
             
             totalTrainLoss = 0
             totalTestLoss = 0
-            
             for (idx,(img,mask)) in enumerate(self.trainloader):
                 (img,mask) = (img.to(self.device),mask.to(self.device))
-                
                 pred = self.model(img)
                 loss = self.lossFunc(pred,mask)
                 
@@ -80,7 +80,14 @@ class TrainSeg():
                 loss.backward()
                 self.optim.step()
                 
-                totalTrainLoss += loss
+                totalTrainLoss += float(loss)
+                
+                del pred
+                del loss
+                del img
+                del mask
+                gc.collect()
+                torch.cuda.empty_cache()
                 
             with torch.no_grad():
                 self.model.eval()
@@ -88,13 +95,20 @@ class TrainSeg():
                 for (img,mask) in self.testloader:
                     (img,mask) = (img.to(self.device),mask.to(self.device))
                     pred = self.model(img)
-                    totalTestLoss += self.lossFunc(pred,mask)
+                    loss = self.lossFunc(pred,mask)
+                    totalTestLoss += float(loss)
+                    
+                    del pred
+                    del img
+                    del mask
+                    gc.collect()
+                    torch.cuda.empty_cache()
                     
             avgTrainLoss = totalTrainLoss / self.train_steps
             avgTestLoss = totalTestLoss / self.test_steps
                 
-            self.Loss_dict["train_loss"].append(avgTrainLoss.cpu().detach().numpy())
-            self.Loss_dict["test_loss"].append(avgTestLoss.cpu().detach().numpy())
+            self.Loss_dict["train_loss"].append(avgTrainLoss)#.cpu().detach().numpy())
+            self.Loss_dict["test_loss"].append(avgTestLoss)#.cpu().detach().numpy())
                         
             print("Epoch: {}/{}".format(e + 1, self.num_epochs))
             print("Train loss: {:.6f}, Test loss: {:.4f}, Learning rate: {:.6f}".format(avgTrainLoss, avgTestLoss, lr_pr))

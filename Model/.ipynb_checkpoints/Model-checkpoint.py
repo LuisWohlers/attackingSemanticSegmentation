@@ -67,11 +67,11 @@ class UNet(Module):
         
     def forward(self,x):
         #x = F.pad(x,(98,98,98,98),'reflect')
-        encoded_features = self.encoder(x)
+        encoded_features = self.encoder(x)        
         out = self.decoder(encoded_features[::-1][0], encoded_features[::-1][1:])
         out = self.tail(out)
         #out = self.sigmoid(out)
-        out = F.interpolate(out,(1080,1920))
+        out = F.interpolate(out,(512,1024))
         return out
             
         

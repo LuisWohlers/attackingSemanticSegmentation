@@ -41,14 +41,16 @@ class dataset(Dataset):
         
     def __getitem__(self,i):
         image = Image.open(self.image_filedirections[i])
-        mask = np.array(Image.open(self.mask_filedirections[i]))[...,np.newaxis].transpose((2,0,1))
-        
-        masks = [(mask==c) for c in self.class_values]
-        mask = np.stack(masks,axis=-1).astype('float')
-        
+        mask = Image.open(self.mask_filedirections[i])
+
         if self.transforms:
             sample = self.transforms(image=image, mask=mask)
             image, mask = sample['image'], sample['mask']
+        
+        mask = mask.squeeze()
+        masks = [(mask==c) for c in self.class_values]
+        mask = torch.stack(masks,dim=-1)
+        mask = mask.permute(2,0,1)
             
         return image, mask.float()
     
@@ -80,7 +82,6 @@ class dataset(Dataset):
 def visualize_result(image,result_mask):
     mask = result_mask.cpu().detach().numpy()#.transpose(2,0,1)
     image = image.cpu().detach().numpy().transpose(1,2,0)
-    
     width, height = mask.shape
 
     magenta = np.array([186,85,211])/255
