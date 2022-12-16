@@ -4,6 +4,7 @@ from torchvision import transforms
 from imutils import paths
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import time
 import os
@@ -53,9 +54,9 @@ class TrainSeg():
         self.lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=self.optim, gamma=self.decay_rate)
 
         
-        self.trainloader = DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, num_workers = 1)#os.cpu_count())
-        self.testloader = DataLoader(self.test_data, batch_size = self.batch_size, shuffle = True, num_workers = 1)#os.cpu_count())
-        self.valloader = DataLoader(self.val_data, batch_size = self.batch_size, shuffle = True, num_workers = 1)#os.cpu_count())
+        self.trainloader = DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
+        self.testloader = DataLoader(self.test_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
+        self.valloader = DataLoader(self.val_data, batch_size = self.batch_size, shuffle = True, num_workers = os.cpu_count())
         
         self.train_steps = len(traindata)//self.batch_size
         self.test_steps = len(testdata)//self.batch_size
@@ -121,19 +122,27 @@ class TrainSeg():
         end_time = time.time()
         print("Total time taken to train the model: {:.2f}s".format(end_time - start_time))
                 
-    def val(self):
+    def val(self,threshold=0.5):
         with torch.no_grad():
             self.model.eval()
             totalValLoss = 0
+            totalValAcc = 0
             
             for (img,mask) in self.valloader:
                 (img,mask) = (img.to(self.device),mask.to(self.device))
                 pred = self.model(img)
                 totalValLoss += self.lossFunc(pred,mask)
+                pred[pred>=threshold] = 1.0
+                pred[pred<threshold] = 0.0
                 
+                sum_ = torch.sum(pred == mask)
+                totalValAcc += sum_/torch.numel(mask)
+                
+            avgValAcc = totalValAcc/ self.val_steps    
             avgValLoss = totalValLoss / self.val_steps
-            
-        print("Average Validation Loss: {:.4f}\n".format(avgValLoss))
+                               
+        print("Average Validation Loss: {:.4f}\n".format(avgValLoss))    
+        print("Average Validation Accuracy: {:.4f}\n".format(avgValAcc))
         
     def save(self):
         torch.save(self.model.state_dict(), self.model_path)

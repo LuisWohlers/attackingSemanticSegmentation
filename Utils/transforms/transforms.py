@@ -10,8 +10,19 @@ import PIL
 
 class ToTensor(object):
 
-    def __call__(self, image, mask):
-        image = image.resize((1024,512))
-        mask = mask.resize((1024,512))
+    def __call__(self, image, mask, img_size, class_values):
+        image = image.resize(img_size)
+        
+        masks = transforms.functional.to_tensor(mask).squeeze()*255
+
+        mask = [transforms.functional.to_tensor(transforms.functional.to_pil_image((masks==c).int()).resize(img_size))\
+                for c in class_values]
+        
+        
+        
+        mask = torch.stack(mask,dim=-1).squeeze()
+        
+        mask = mask.permute(2,0,1)
+
         return {'image': transforms.functional.to_tensor(image),
-                'mask': transforms.functional.to_tensor(mask).squeeze()*255}#torch.from_numpy(mask.squeeze(axis=0).transpose(2,0,1))}
+                'mask': mask.float()}

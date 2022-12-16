@@ -5,6 +5,7 @@ from torch.nn import MaxPool2d
 from torch.nn import Module
 from torch.nn import ModuleList
 from torch.nn import ReLU
+from torch.nn import Dropout
 from torchvision.transforms import CenterCrop
 from torch.nn import functional as F
 import torch
@@ -13,23 +14,33 @@ import torchvision
 #output: (N,num_classes,H,W) 
 
 class Block(Module):
-    def __init__(self,inChannels,outChannels):
+    def __init__(self,inChannels,outChannels,p_dropout=0.05):
         super().__init__()
         self.bnorm1 = BatchNorm2d(inChannels)
         self.conv1 = Conv2d(inChannels,outChannels,3)
         self.relu = ReLU()
         self.bnorm2 = BatchNorm2d(outChannels)
         self.conv2 = Conv2d(outChannels,outChannels,3)
-        self.bnorm3 = BatchNorm2d(outChannels)
+        #self.bnorm3 = BatchNorm2d(outChannels)
+        
+        self.dropout = Dropout(p_dropout)
         
     def forward(self, x):
-        return self.bnorm3(self.conv2(self.bnorm2(self.relu(self.conv1(self.bnorm1(x))))))
+        x = self.bnorm1(x)
+        x = self.conv1(x)
+        x = self.dropout(x)
+        x = self.relu(x)
+        x = self.bnorm2(x)
+        x = self.conv2(x)
+        x = self.dropout(x)
+        #x = self.bnorm3(x)
+        return x#self.bnorm3(self.conv2(self.bnorm2(self.relu(self.conv1(self.bnorm1(x))))))
     
 class Encoder(Module):
-    def __init__(self,channels):
+    def __init__(self,channels,p_dropout=0.05):
         super().__init__()
         self.channels = channels#(3,64,128,256,512,1024)
-        self.blocks = ModuleList([Block(self.channels[i],self.channels[i+1]) for i in range(len(self.channels)-1)])
+        self.blocks = ModuleList([Block(self.channels[i],self.channels[i+1],p_dropout) for i in range(len(self.channels)-1)])
         self.pool = MaxPool2d(2)
         
     def forward(self,x):
@@ -41,11 +52,11 @@ class Encoder(Module):
         return features
     
 class Decoder(Module):
-    def __init__(self,channels):
+    def __init__(self,channels,p_dropout=0.05):
         super().__init__()
         self.channels = channels#(1024,512,256,128,64)
         self.upconvs = ModuleList([ConvTranspose2d(self.channels[i],self.channels[i+1],2,2) for i in range(len(self.channels)-1)])
-        self.blocks = ModuleList([Block(self.channels[i],self.channels[i+1]) for i in range(len(self.channels)-1)])
+        self.blocks = ModuleList([Block(self.channels[i],self.channels[i+1],p_dropout) for i in range(len(self.channels)-1)])
         
     def forward(self,x,features):
         for i in range(len(self.channels)-1):
@@ -57,12 +68,13 @@ class Decoder(Module):
         return x
             
 class UNet(Module):
-    def __init__(self,num_classes=3,enc_channels=(3,64,128,256,512,1024),dec_channels=(1024,512,256,128,64)):
+    def __init__(self,num_classes=3,enc_channels=(3,64,128,256,512,1024),dec_channels=(1024,512,256,128,64),img_size=(512,1024),p_dropout=0.05):
         super().__init__()
-        self.encoder = Encoder(enc_channels)
-        self.decoder = Decoder(dec_channels)
+        self.encoder = Encoder(enc_channels,p_dropout)
+        self.decoder = Decoder(dec_channels,p_dropout)
         self.tail = Conv2d(self.decoder.channels[-1],num_classes,1)
         self.sigmoid = torch.nn.Sigmoid()
+        self.img_size = img_size
         self.float()
         
     def forward(self,x):
@@ -71,7 +83,7 @@ class UNet(Module):
         out = self.decoder(encoded_features[::-1][0], encoded_features[::-1][1:])
         out = self.tail(out)
         #out = self.sigmoid(out)
-        out = F.interpolate(out,(512,1024))
+        out = F.interpolate(out,self.img_size)
         return out
             
         

@@ -31,28 +31,25 @@ class dataset(Dataset):
             'rail-raised',
             'rail-embedded']
     
-    def __init__(self, imdir, maskdir, numstart=0, numend=-2, classes=None,transforms=Tr.ToTensor()):
+    def __init__(self, imdir, maskdir, numstart=0, numend=-2, classes=None,transforms=Tr.ToTensor(),img_size=(1024,512)):
         self.image_filenames = sorted(os.listdir(imdir))[numstart:numend+1]
         self.mask_filenames = sorted(os.listdir(maskdir))[numstart:numend+1]
         self.image_filedirections = [os.path.join(imdir,name) for name in self.image_filenames]
         self.mask_filedirections = [os.path.join(maskdir,name) for name in self.mask_filenames]
         self.class_values = [self.classlist.index(c.lower()) for c in classes]
         self.transforms = transforms
+        self.img_size = img_size
         
     def __getitem__(self,i):
         image = Image.open(self.image_filedirections[i])
         mask = Image.open(self.mask_filedirections[i])
 
         if self.transforms:
-            sample = self.transforms(image=image, mask=mask)
+            sample = self.transforms(image=image, mask=mask, img_size = self.img_size, class_values = self.class_values)
             image, mask = sample['image'], sample['mask']
-        
-        mask = mask.squeeze()
-        masks = [(mask==c) for c in self.class_values]
-        mask = torch.stack(masks,dim=-1)
-        mask = mask.permute(2,0,1)
+
             
-        return image, mask.float()
+        return image, mask
     
     def __len__(self):
         return len(self.image_filenames)
