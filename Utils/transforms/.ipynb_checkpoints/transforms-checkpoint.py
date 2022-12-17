@@ -15,12 +15,16 @@ class ToTensor(object):
         
         masks = transforms.functional.to_tensor(mask).squeeze()*255
 
-        mask = [transforms.functional.to_tensor(transforms.functional.to_pil_image((masks==c).int()).resize(img_size))\
+        maskl = [transforms.functional.to_tensor(transforms.functional.to_pil_image((masks==c).int()).resize(img_size))\
                 for c in class_values]
         
+        maskt = torch.stack(maskl,dim=-1).squeeze()
         
+        masksum = ((((torch.sum(maskt, dim = -1) >= 1).int())-1)*(-1)).unsqueeze(0)
         
-        mask = torch.stack(mask,dim=-1).squeeze()
+        maskl.append(masksum)
+        
+        mask = torch.stack(maskl,dim=-1).squeeze()
         
         mask = mask.permute(2,0,1)
 
