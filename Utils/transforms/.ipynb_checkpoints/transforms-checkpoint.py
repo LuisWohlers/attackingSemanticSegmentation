@@ -20,7 +20,7 @@ class ToTensor(object):
         
         maskt = torch.stack(maskl,dim=-1).squeeze()
         
-        masksum = ((((torch.sum(maskt, dim = -1) >= 1).int())-1)*(-1)).unsqueeze(0)
+        masksum = ((((torch.sum(maskt, dim = -1) >= 1).int())-1)*(-1)).unsqueeze(0) ## add "other" class
         
         maskl.append(masksum)
         

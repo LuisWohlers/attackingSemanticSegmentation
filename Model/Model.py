@@ -70,6 +70,7 @@ class Decoder(Module):
 class UNet(Module):
     def __init__(self,num_classes=3,enc_channels=(3,64,128,256,512,1024),dec_channels=(1024,512,256,128,64),img_size=(512,1024),p_dropout=0.05):
         super().__init__()
+        self.num_classes = num_classes
         self.encoder = Encoder(enc_channels,p_dropout)
         self.decoder = Decoder(dec_channels,p_dropout)
         self.tail = Conv2d(self.decoder.channels[-1],num_classes,1)
@@ -85,5 +86,15 @@ class UNet(Module):
         #out = self.sigmoid(out)
         out = F.interpolate(out,self.img_size)
         return out
+    
+    def predict(self,x):        
+        raw = self.forward(x)
+        sm = torch.nn.Softmax(dim=-1)
+        confidences = sm(raw)
+        segmentation = torch.argmax(confidences,dim=1)
+        channels = [(segmentation == c).int() for c in range(self.num_classes)]
+        segmentation_channels = torch.stack(channels,dim=-1)
+        segmentation_channels = segmentation_channels.permute(0,3,1,2)
+        return segmentation, segmentation_channels, confidences
             
         

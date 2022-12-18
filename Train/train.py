@@ -130,10 +130,10 @@ class TrainSeg():
             
             for (img,mask) in self.valloader:
                 (img,mask) = (img.to(self.device),mask.to(self.device))
-                pred = self.model(img)
-                totalValLoss += self.lossFunc(pred,mask)
-                pred[pred>=threshold] = 1.0
-                pred[pred<threshold] = 0.0
+                out = self.model(img)
+                totalValLoss += self.lossFunc(out,mask)
+                
+                pred = self.model.predict(img)[1]
                 
                 sum_ = torch.sum(pred == mask)
                 totalValAcc += sum_/torch.numel(mask)
