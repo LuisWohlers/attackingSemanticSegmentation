@@ -85,11 +85,12 @@ class UNet(Module):
         out = self.tail(out)
         #out = self.sigmoid(out)
         out = F.interpolate(out,self.img_size)
+        #out = self.sigmoid(out)
         return out
     
     def predict(self,x):        
         raw = self.forward(x)
-        sm = torch.nn.Softmax(dim=-1)
+        sm = torch.nn.Softmax(dim=1)
         confidences = sm(raw)
         segmentation = torch.argmax(confidences,dim=1)
         channels = [(segmentation == c).int() for c in range(self.num_classes)]

@@ -19,20 +19,67 @@ def FGSM_singleImage(model:torch.nn.Module=None,
          loss:torch.nn.Module=None,
          img:torch.tensor=None, 
          target_mask:torch.tensor=None, 
-         eps:float=0.5) -> tuple[torch.tensor,torch,tensor]:
+         epsilon:float=0.5) -> torch.tensor:#-> tuple[torch.tensor,torch.tensor]:
     
     if model == None or img == None or target_mask == None or loss == None:
         return None,None
     
-    device = torch.device('cuda') if torch.cuda.is_available() else torch device('cpu')
-    img, mask = img.unsqueeze(0).to(device), mask.unsqueeze(0).to(device)
-    pred = model(img)
-
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    img, target_mask = img.unsqueeze(0).to(device), target_mask.unsqueeze(0).to(device)
+    img.requires_grad = True
+    out = model(img)
     
     
+    loss = loss(out,target_mask)
     model.zero_grad()
-    loss = loss(pred,target_mask)
     loss.backward()
+    data_grad = img.grad.data
+    sign_data_grad = data_grad.sign()
+    perturbed_img = img - epsilon*sign_data_grad
+    perturbed_img = torch.clamp(perturbed_img,0,1)
+    return perturbed_img
+    
+def I_FGSM_singleImage(model:torch.nn.Module=None, 
+         lossf:torch.nn.Module=None,
+         img:torch.tensor=None, 
+         target_mask:torch.tensor=None, 
+         alpha:float=0.5,
+         num_iters=50) -> tuple[torch.tensor,torch.tensor]:
+    if model == None or img == None or target_mask == None or lossf == None:
+        return None,None
+    
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    
+    img, target_mask = img.unsqueeze(0).to(device), target_mask.unsqueeze(0).to(device)
+    img.requires_grad = True
+    img_ = img
+    
+    for i in range(num_iters):
+        img_.requires_grad_()
+        img_.retain_grad()        
+        #if i>0:
+        #    loss.detach_()
+            #loss.requires_grad_()
+            #loss.retain_grad()
+        #    out.detach_()
+            #loss = torch.autograd.Variable(loss.data,requires_grad = True)
+        out = model(img_)
+        loss = lossf(out,target_mask)
+        model.zero_grad()
+        loss.backward(retain_graph = True)
+        data_grad = img_.grad.data
+        sign_data_grad = data_grad.sign()
+        img_ = img_ - alpha*sign_data_grad
+        img_ = torch.clamp(img_,0,1)
+        del loss
+        del out
+        torch.cuda.empty_cache()
+        
+    perturbed_image = img_
+    perturbation = img_-img
+    
+    return perturbed_image,perturbation
+    
     
     
     
