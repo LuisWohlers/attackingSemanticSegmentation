@@ -80,7 +80,52 @@ def I_FGSM_singleImage(model:torch.nn.Module=None,
     
     return perturbed_image,perturbation
     
+def I_FGSMLeastLikely_singleImage(model:torch.nn.Module=None, 
+         lossf:torch.nn.Module=None,
+         img:torch.tensor=None, 
+         num_classes=3, 
+         alpha:float=0.5,
+         num_iters=50) -> tuple[torch.tensor,torch.tensor]:
+    if model == None or img == None or lossf == None:
+        return None,None
     
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
+    img = img.unsqueeze(0).to(device)
+    img.requires_grad = True
+    img_ = img
+    
+    sm = torch.nn.Softmax(dim=1)
+    
+    for i in range(num_iters):
+        img_.requires_grad_()
+        img_.retain_grad()        
+        #if i>0:
+        #    loss.detach_()
+            #loss.requires_grad_()
+            #loss.retain_grad()
+        #    out.detach_()
+            #loss = torch.autograd.Variable(loss.data,requires_grad = True)
+        out = model(img_)
+        confidences = sm(out)
+        target_mask = torch.argmin(confidences,dim=1)
+        target_mask = [(target_mask == c).int() for c in range(num_classes)]
+        target_mask = torch.stack(target_mask,dim=-1)
+        target_mask = target_mask.permute(0,3,1,2).float()
+        loss = lossf(out,target_mask)
+        model.zero_grad()
+        loss.backward(retain_graph = True)
+        data_grad = img_.grad.data
+        sign_data_grad = data_grad.sign()
+        img_ = img_ - alpha*sign_data_grad
+        img_ = torch.clamp(img_,0,1)
+        del loss
+        del out
+        torch.cuda.empty_cache()
+        
+    perturbed_image = img_
+    perturbation = img_-img
+    
+    return perturbed_image,perturbation    
     
     
