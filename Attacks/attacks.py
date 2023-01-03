@@ -44,7 +44,7 @@ def I_FGSM_singleImage(model:torch.nn.Module=None,
          img:torch.tensor=None, 
          target_mask:torch.tensor=None, 
          alpha:float=0.5,
-         num_iters=50) -> tuple[torch.tensor,torch.tensor]:
+         num_iters=50) -> [torch.tensor,torch.tensor]:
     if model == None or img == None or target_mask == None or lossf == None:
         return None,None
     
@@ -85,7 +85,7 @@ def I_FGSMLeastLikely_singleImage(model:torch.nn.Module=None,
          img:torch.tensor=None, 
          num_classes=3, 
          alpha:float=0.5,
-         num_iters=50) -> tuple[torch.tensor,torch.tensor]:
+         num_iters=50) -> [torch.tensor,torch.tensor]:
     if model == None or img == None or lossf == None:
         return None,None
     
