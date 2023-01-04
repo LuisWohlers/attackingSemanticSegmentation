@@ -10,6 +10,7 @@ import torch
 import time
 import os
 import numpy as np
+import gc
 
 from Utils import loader, loss
 from Train import train
@@ -49,12 +50,14 @@ def I_FGSM_singleImage(model:torch.nn.Module=None,
         return None,None
     
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    #device = 'cpu'
     
     img, target_mask = img.unsqueeze(0).to(device), target_mask.unsqueeze(0).to(device)
     img.requires_grad = True
     img_ = img
     
     for i in range(num_iters):
+        img_ = img_.detach().cpu().clone().to(device)
         img_.requires_grad_()
         img_.retain_grad()        
         #if i>0:
@@ -73,7 +76,13 @@ def I_FGSM_singleImage(model:torch.nn.Module=None,
         img_ = torch.clamp(img_,0,1)
         del loss
         del out
+        del data_grad
+        del sign_data_grad
         torch.cuda.empty_cache()
+        gc.collect()
+        
+        #time.sleep(0.1)
+        
         
     perturbed_image = img_
     perturbation = img_-img
