@@ -104,7 +104,8 @@ def Irestricted_FGSM_singleImage(model:torch.nn.Module=None,
     img, target_mask = img.unsqueeze(0).to(device), target_mask.unsqueeze(0).to(device)
     img.requires_grad = True
     img_ = img
-    prediction = model.predict(img_)[1][0][2]
+    prediction = model.predict(img_)[1][0][1]
+    plt.imshow(prediction.detach().cpu().numpy())
     
     for i in range(num_iters):
         img_ = img_.detach().cpu().clone().to(device)
@@ -116,7 +117,7 @@ def Irestricted_FGSM_singleImage(model:torch.nn.Module=None,
         loss.backward(retain_graph = True)
         data_grad = img_.grad.data
         sign_data_grad = data_grad.sign()
-        img_ = img_ - alpha*sign_data_grad
+        img_ = img_ - alpha*sign_data_grad*prediction
         img_ = torch.clamp(img_,0,1)
         del loss
         del out
@@ -173,6 +174,30 @@ def I_FGSMLeastLikely_singleImage(model:torch.nn.Module=None,
     perturbed_image = img_
     perturbation = img_-img
     
-    return perturbed_image,perturbation    
+    return perturbed_image,perturbation
+
+def atanh(x, eps=1e-6):
+    x = x*(1-eps)
+    return 0.5 * torch.log((1.0+x)/(1.0-x))
+
+def to_tanh_space(x,box):
+    return atanh((x - (box[1]+box[0])*0.5) / (boc[1]-box[0])*0.5)
+
+def from_tanh_space(x,box):
+    return torch.tanh(x)*(boc[1]-box[0])*0.5) + (box[1]+box[0])*0.5)
+
+def CarliniWagner(model:torch.nn.Module=None, 
+         lossf:torch.nn.Module=None,
+         img:torch.tensor=None, 
+         target_mask:torch.tensor=None, 
+         alpha:float=0.5,
+         num_iters=50) -> [torch.tensor,torch.tensor]:
+    if model == None or img == None or target_mask == None or lossf == None:
+        return None,None
+    
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    #device = 'cpu'
+    
+    img, target_mask = img.unsqueeze(0).to(device), target_mask.unsqueeze(0).to(device)
     
     
