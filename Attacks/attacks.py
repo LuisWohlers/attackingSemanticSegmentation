@@ -176,28 +176,54 @@ def I_FGSMLeastLikely_singleImage(model:torch.nn.Module=None,
     
     return perturbed_image,perturbation
 
-def atanh(x, eps=1e-6):
-    x = x*(1-eps)
-    return 0.5 * torch.log((1.0+x)/(1.0-x))
-
-def to_tanh_space(x,box):
-    return atanh((x - (box[1]+box[0])*0.5) / (boc[1]-box[0])*0.5)
-
-def from_tanh_space(x,box):
-    return torch.tanh(x)*(boc[1]-box[0])*0.5) + (box[1]+box[0])*0.5)
-
-def CarliniWagner(model:torch.nn.Module=None, 
+def PGD_batch(model:torch.nn.Module=None, 
          lossf:torch.nn.Module=None,
-         img:torch.tensor=None, 
-         target_mask:torch.tensor=None, 
+         img_batch:torch.tensor=None, 
+         target_mask_batch:torch.tensor=None, 
          alpha:float=0.5,
          num_iters=50) -> [torch.tensor,torch.tensor]:
-    if model == None or img == None or target_mask == None or lossf == None:
+    if model == None or img_batch == None or target_mask_batch == None or lossf == None:
         return None,None
     
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     #device = 'cpu'
     
-    img, target_mask = img.unsqueeze(0).to(device), target_mask.unsqueeze(0).to(device)
+    img_batch, target_mask_batch = img_batch.unsqueeze(0).to(device), target_mask_batch.unsqueeze(0).to(device)
+    img.requires_grad = True
+    
+    img_batch_adv = img_batch.clone().detach().requires_grad_(True).to(device)
+    targeted = target_mask_batch is not None
+    num_channels = img_batch.shape[1]
+    
+    for i in range(num_iters):
+        _img_adv = img_batch_adv.clone().detach().requires_grad_(True)
+    
+
+#def atanh(x, eps=1e-6):
+#    x = x*(1-eps)
+#    return 0.5 * torch.log((1.0+x)/(1.0-x))
+
+#def to_tanh_space(x,box):
+#    return atanh((x - (box[1]+box[0])*0.5) / (boc[1]-box[0])*0.5)
+
+#def from_tanh_space(x,box):
+#    return torch.tanh(x)*((box[1]-box[0])*0.5) + ((box[1]+box[0])*0.5)
+
+#def CarliniWagner(model:torch.nn.Module=None, 
+#         lossf:torch.nn.Module=None,
+#         img:torch.tensor=None, 
+#         target_mask:torch.tensor=None, 
+#         alpha:float=0.5,
+#         num_iters=50) -> [torch.tensor,torch.tensor]:
+#    if model == None or img == None or target_mask == None or lossf == None:
+#        return None,None
+#    
+#    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+#    #device = 'cpu'
+#    
+#    img, target_mask = img.unsqueeze(0).to(device), target_mask.unsqueeze(0).to(device)
+ 
+    
+#class AdversarialTransformationNetwork():
     
     

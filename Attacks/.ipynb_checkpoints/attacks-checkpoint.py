@@ -184,7 +184,7 @@ def to_tanh_space(x,box):
     return atanh((x - (box[1]+box[0])*0.5) / (boc[1]-box[0])*0.5)
 
 def from_tanh_space(x,box):
-    return torch.tanh(x)*(boc[1]-box[0])*0.5) + (box[1]+box[0])*0.5)
+    return torch.tanh(x)*((box[1]-box[0])*0.5) + ((box[1]+box[0])*0.5)
 
 def CarliniWagner(model:torch.nn.Module=None, 
          lossf:torch.nn.Module=None,

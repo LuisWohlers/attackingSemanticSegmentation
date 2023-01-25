@@ -96,6 +96,6 @@ class UNet(Module):
         channels = [(segmentation == c).int() for c in range(self.num_classes)]
         segmentation_channels = torch.stack(channels,dim=-1)
         segmentation_channels = segmentation_channels.permute(0,3,1,2)
-        return segmentation, segmentation_channels, confidences
+        return segmentation, segmentation_channels, confidences, raw
             
         
