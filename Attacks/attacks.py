@@ -12,6 +12,8 @@ import os
 import numpy as np
 import gc
 
+from typing import Union, Callable, Tuple
+
 from Utils import loader, loss
 from Train import train
 from Model import Model
@@ -179,17 +181,22 @@ def I_FGSMLeastLikely_singleImage(model:torch.nn.Module=None,
 def PGD_batch(model:torch.nn.Module=None, 
          lossf:torch.nn.Module=None,
          img_batch:torch.tensor=None, 
+         mask_batch:torch.tensor=None,
          target_mask_batch:torch.tensor=None, 
-         alpha:float=0.5,
-         num_iters=50) -> [torch.tensor,torch.tensor]:
+         num_iters:int=50,
+         step_norm:Union[str,float]='inf',
+         step_size=1.0,
+         eps:float=0.0,
+         eps_norm:Union[str,float]='inf',
+         clamp:tuple=(0,1)) -> [torch.tensor,torch.tensor]:
     if model == None or img_batch == None or target_mask_batch == None or lossf == None:
         return None,None
-    
+    ### https://towardsdatascience.com/know-your-enemy-7f7c5038bdf3
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     #device = 'cpu'
     
-    img_batch, target_mask_batch = img_batch.unsqueeze(0).to(device), target_mask_batch.unsqueeze(0).to(device)
-    img.requires_grad = True
+    img_batch, target_mask_batch = img_batch.to(device), target_mask_batch.to(device)
+    #img_batch.requires_grad = True
     
     img_batch_adv = img_batch.clone().detach().requires_grad_(True).to(device)
     targeted = target_mask_batch is not None
@@ -197,6 +204,46 @@ def PGD_batch(model:torch.nn.Module=None,
     
     for i in range(num_iters):
         _img_adv = img_batch_adv.clone().detach().requires_grad_(True)
+        
+        prediction = model(_img_adv)
+        loss = lossf(prediction,target_mask_batch if targeted else mask_batch)
+        loss.backward()
+        
+        with torch.no_grad():
+            if step_norm == 'inf':
+                gradients = _img_adv.grad.sign() * step_size
+            else:
+                gradients = _img_adv.grad * step_size / _img_adv.grad.view(_img_adv.shape[0],-1).norm(step_norm,dim=-1).view(-1,1,1,1)
+                
+            if targeted:
+                img_batch_adv -= gradients
+            else:
+                img_batch_adv += gradients
+                
+        if eps_norm == 'inf':
+            img_batch_adv = torch.max(torch.min(img_batch_adv,img_batch+eps),img_batch-eps)
+        else:
+            delta = img_batch_adv - img_batch
+            
+            mask = delta.view(delta.shape[0], -1).norm(eps_norm, dim=1) <= eps
+            
+            scaling_factor = delta.view(delta.shape[0],-1).norm(eps_norm,dim=1)
+            scaling_factor[mask] = eps
+            
+            delta *= eps/scaling_factor.view(-1,1,1,1)
+            
+            img_batch_adv = img_batch + delta
+            
+        img_batch_adv = img_batch_adv.clamp(*clamp)
+        
+        del loss
+        torch.cuda.empty_cache()
+        gc.collect()
+        
+    return img_batch_adv.detach()
+                
+            
+        
     
 
 #def atanh(x, eps=1e-6):
